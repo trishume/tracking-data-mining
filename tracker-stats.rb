@@ -95,6 +95,7 @@ def do_job(nums, times)
   end
   STDERR.puts "Starting at #{start}/#{nums.length}"
 
+  # Use public active-shipping test key
   usps = ActiveShipping::USPS.new(:login => '677JADED7283')
   res = chunk_track(usps, nums[start..-1])
   # pp res[0..30].map.with_index {|e,i| [e.success?, e.status, nums[i], e.message, e.shipment_events.first ? e.shipment_events.first.time : nil]}
