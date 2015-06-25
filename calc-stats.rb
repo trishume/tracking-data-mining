@@ -32,12 +32,11 @@ def calc_stats(data)
   success = successes(data)
   stats[:success] = success.length
   delivered = success.select { |e| e['last']['msg'] == 'DELIVERED' }
-  stats[:delivered] = 5
   stats[:fail] = stats[:total] - stats[:success]
 
   times = delivered.map { |e| (Time.parse(e['last']['time'])-ship_time(e))/(60*60*24) }
-  # pp times.zip(delivered).select { |e| e[0] > 300 }
-  stats[:avg_transit_days] = (times.inject(:+)/stats[:delivered].to_f)
+  # STDERR.puts times.zip(delivered).select { |e| e[0] > 300 }
+  stats[:avg_transit_days] = (times.inject(:+)/delivered.length.to_f)
 
   classes = success.map { |e| classify(e['last']['msg']) }
   CLASSES.each do |klass|
@@ -100,24 +99,34 @@ def by_x(label, values, keys, no_fail)
   pp stats
   rot = rotate(stats)
 
-  graph(rot, label, [:fail, :lost, :delivered]) unless no_fail
+  graph(rot, label, [:fail, :lost, :not_lost_or_deliv, :delivered]) unless no_fail
   graph(rot, label, [:fail_of_total,:lost_of_total,:not_lost_of_total]) unless no_fail
-  graph(rot, label, [:lost, :delivered])
+  graph(rot, label, [:lost, :not_lost_or_deliv, :delivered])
   graph(rot, label, [:lost_of_total, :not_lost_or_deliv_of_total, :delivered_of_total])
   graph(rot, label, [:avg_transit_days])
   interesting_classes = (CLASSES-[:delivered]).map { |e| (e.to_s+"_of_success").intern  }
   graph(rot, label, interesting_classes, Gruff::SideBar)
 
-  # groups.values.zip(keys).each do |vs,k|
-  #     puts "======== '#{k}' fail states:"
-  #     fail_states(vs)
-  # end
+  values.zip(keys).each do |vs,k|
+      puts "======== '#{k}' fail states:"
+      fail_states(vs)
+  end
 end
 
 def by_month(data)
   groups = data.group_by { |e| Time.parse(e['time']).strftime("%b") }.sort_by {|e| Time.parse(e[1].first['time'])}
   keys = groups.map(&:first).map(&:to_s)
   by_x('month', groups.map(&:last), keys, false)
+end
+
+def by_intl(data)
+  groups = data.partition { |e| e['num'].length==13 }
+  by_x('international', groups, ['Intl','Domestic'], false)
+end
+
+def by_all(data)
+  groups = [data]
+  by_x('all', groups, ['all'], false)
 end
 
 def classify(state)
@@ -147,5 +156,7 @@ end
 pp calc_stats(data)
 by_mail_class(data)
 by_month(data)
+by_intl(data)
+by_all(data)
 puts "====== overall end states"
 fail_states(data)
